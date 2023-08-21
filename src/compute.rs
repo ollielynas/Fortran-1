@@ -1,8 +1,9 @@
 use std::collections::HashMap;
-use std::ops::Index;
-
+use sycamore::prelude::ReadSignal;
 use log::info;
 use log::Level;
+
+use crate::IO704;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -15,6 +16,9 @@ pub enum Token {
     Newline,
     OpenParen { id: Option<i64>, function: bool },
     CloseParen { id: Option<i64>, function: bool },
+    Print,
+    Format,
+    SenseLight,
     Power,
     Multiply,
     Divide,
@@ -36,6 +40,7 @@ impl Token {
             "\n" => Token::Newline,
             "DO" => Token::Do,
             "DIMENSION" => Token::Dimension,
+            "SenseLight" => Token::SenseLight,
             "E" => Token::E,
             "STOP" => Token::Stop,
             _ => Token::Identifier(str),
@@ -215,7 +220,7 @@ fn get_char_type(c: char) -> CharType {
 }
 
 fn inline_functions(tokens:&mut Vec<Token>) {
-    let mut id = 0;
+    // let mut id = 0;
     // let mut current_args = vec![];
 
     let mut functions: HashMap<String, (Vec<Token>, Vec<Token>)> = HashMap::new();
@@ -236,7 +241,6 @@ fn inline_functions(tokens:&mut Vec<Token>) {
                                         Token::Identifier(_) if x == &args[arg_num] => current_args.clone(),
                                         _ => vec![x.clone()]
                                     }).collect::<Vec<Token>>();
-                                    info!("{:?}, {:?}", arg_num, args[arg_num]);
                                     break;
                                 }
                                 Token::Comma => {
@@ -286,21 +290,96 @@ fn inline_functions(tokens:&mut Vec<Token>) {
     }
 
     for i in sub_in.iter().rev() {
+        if tokens.len() >= i.1+1 {
         tokens.splice(i.0..i.1+1, i.2.clone());
+        }else {
+            info!("sub in failed")
+        }
     }
+}
+/// # Returns (recurse, io, line_num)
+pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize) -> (bool, IO704, usize) {
+    let mut io = io;
+    let mut variables: HashMap<String, Vec<Token>> = HashMap::new();
+    let mut lines: Vec<Vec<Token>> = vec![];
+    let mut line = vec![];
+    for i in 0..tokens.len() {
+        match &tokens[i] {
+            Token::Newline => {
+                line.push(tokens[i].clone());
+                lines.push(line.clone());
+                line = vec![];
+            }
+            _ => {
+                line.push(tokens[i].clone());
+            }
+        }
+    }
+    lines.push(line.clone());
+    info!("{:?}", lines);
+    let mut return_ = false;
+    loop {
+        if line_num >= lines.len() {
+            break
+        }
+        let line = lines[line_num].clone();
+        let mut index = 0;
+        for i in line.iter().skip(1) {
+            index +=1;
+            match i {
+                Token::Identifier(a) => {
+                    if variables.contains_key(a) {
+                        let new_line: Vec<Token> = variables.get(a).unwrap().clone();                        
+                        lines[line_num].splice(index..index+1, new_line.clone());
+                        // lines.insert(line_num+1, new_line);
+                        info!("##{:?}", lines[line_num]);
+                        return_ = true;
+                        combine_and_expand(&mut lines[line_num]);
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        let line = lines[line_num].clone();
+
+        if line.len() > 1 {
+            match (&line[0], &line[1]) {
+                (Token::Identifier(a), Token::Equals) => {
+                    variables.insert(a.to_owned(), line[2..].iter().filter(|x| !matches!(x, Token::Newline)).map(|x| x.clone()).collect::<Vec<Token>>());
+                }
+                (Token::SenseLight, Token::Int(a)) if io.sense_lights.len()+1 > *a as usize => {
+                    if a > &0 {
+                        io.sense_lights[*a as usize-1] = true;
+                        return_ = true;
+                    }else {
+                        io.sense_lights = vec![false; 4];
+                        return_ = true;
+                    }
+                }
+                _ => {}
+            }
+        }
+        line_num += 1;
+        if return_ {
+            return (true, io, line_num);
+        }
+    }
+    return (false, io, line_num);
+
 }
 
 pub fn tokenize(mut in_string: String) -> Vec<Token> {
     let mut tokens = Vec::new();
     in_string = in_string.to_uppercase();
     in_string = in_string.replace("\r\n", "\n");
+    in_string = in_string.replace("SENSE LIGHT", "SenseLight");
     let chars = in_string.chars();
 
     let mut string = String::new();
     let mut number = String::new();
     for c in chars {
         let c_type = get_char_type(c);
-        info!("{:?},{}", c_type, c);
 
         if c_type != CharType::Letter && string.len() > 0 {
             println!("string: {}", string);
@@ -335,7 +414,7 @@ pub fn process(str: String) -> Vec<Token> {
     tokens = tokens.iter().filter(|x| !matches!(x, Token::Space)).map(|x| x.clone()).collect();
     id_brackets(&mut tokens);
     combine_and_expand(&mut tokens);
-    for i in 0..5 {
+    for i in 0..3 {
         inline_functions(&mut tokens);
     }
     combine_and_expand(&mut tokens);

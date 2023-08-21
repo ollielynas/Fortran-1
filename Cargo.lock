@@ -59,6 +59,7 @@ dependencies = [
  "console_log",
  "log",
  "sycamore",
+ "web-sys",
 ]
 
 [[package]]
