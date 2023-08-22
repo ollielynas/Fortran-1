@@ -173,12 +173,52 @@ color: transparent;
     background-image: repeating-linear-gradient(rgba(255, 255, 255, 0) 0px, rgba(159, 77, 77, 0) 9.6em, rgba(0, 10, 18, 0.259) calc(9.6em + 8px));
 }
 
+.labeled {
+    border: 1px solid #000000;
+    border-bottom: 1px solid #000000;
+    border-radius: 10px;
+    position: relative;
+    padding-top: 0.3em;
+    margin-top: 0.5em;
+    padding: 0.1em;
+}
+
+.run {
+    display: none;
+}
+
+.labeled> p:first-child {
+    position: absolute;
+    top: -1.7em;
+    left: 0.8em;
+    font-size: 0.5em;
+    width: fit-content;
+    white-space: nowrap;
+    background-color: #ffffff;
+    /* border: #000000 solid 1px; */
+    border-radius: 2px;
+    flex-wrap: nowrap;
+    width: fill;
+    height: 1em;
+}
+
+.io {
+    background-color: #ffffff;
+    border: #000000 solid 2px;
+    border-radius: 2px;
+    padding: 1em;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+}
+
 
     </style>
 
 
-<link rel="preload" href="/fortran-92a7527534de051a_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="/fortran-92a7527534de051a.js"></head>
+<link rel="preload" href="/fortran-e08e61d37fe22ace_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/fortran-e08e61d37fe22ace.js"></head>
 <body onload="
         var button = document.getElementById('run-click')
         // run every 1 second
@@ -204,7 +244,7 @@ color: transparent;
 </script>
 
 
-<script type="module">import init from '/fortran-92a7527534de051a.js';init('/fortran-92a7527534de051a_bg.wasm');</script><script>(function () {
+<script type="module">import init from '/fortran-e08e61d37fe22ace.js';init('/fortran-e08e61d37fe22ace_bg.wasm');</script><script>(function () {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var url = protocol + '//' + window.location.host + '/_trunk/ws';
     var poll_interval = 5000;

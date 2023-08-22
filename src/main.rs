@@ -17,6 +17,7 @@ pub struct IO704 {
     pub sense_lights: Vec<bool>,
     pub display: i32,
     pub stop_light: bool,
+    pub print: String,
     
 
 }
@@ -65,6 +66,7 @@ fn main() {
             sense_lights: sense_lights.get().to_vec(),
             display: 0,
             stop_light: true,
+            print: "".to_string(),
         });
 
         // create_effect(cx, || {
@@ -117,7 +119,10 @@ fn main() {
         
 
         view! { cx,
-            div(class="horizontal") {
+
+        div(class="io") {
+            div(class="horizontal labeled") {
+            p{("Sense Lights")}
             Keyed(
                 iterable=sense_lights,
                 view=|cx, x| view! { cx,
@@ -125,17 +130,31 @@ fn main() {
                 },
                 key=|x| *x,
             )
+        
         }
-        input(type="radio", class="on-off", checked=!*do_loop.get()) {}
-            div(class="horizontal") {
+        div(class="horizontal labeled") {
+            p{("Stop Light")}
+            input(type="radio", checked=*stop_light.get()) {}
+        }
+
+            div(class="horizontal labeled") {
+            p{("Sense Switches")}
             Keyed(
                 iterable=sense_switches,
                 view= |cx, x| view! { cx,
-                    input(type="checkbox") {}
+                    input(type="checkbox", class="input-button") {}
                 },
                 key=|x| *x,
             )
             }
+
+            button(class="start", on:click=move |_| {
+                do_loop.set(true);
+                current_line.set(0);
+            }) {
+                "start"
+            }
+        }
 
             div(class="card") {
                 div(class="card-header") {
@@ -249,12 +268,7 @@ fn main() {
 
             
 
-            button(class="start", on:click=move |_| {
-                do_loop.set(true);
-                current_line.set(0);
-            }) {
-                "start"
-            }
+            
 
             button(class="run",id="run-click",disabled=!*do_loop.get(), on:click=move |_| {
                 if *current_line.get() == 0 {
@@ -291,12 +305,8 @@ fn main() {
                 }
             }
             }) {
-                "Compile"
+                "Run"
             }
-
-
-            p(){(format!("{:?}", io.get().display))}
-            p{(format!("{:?}", tokens.get()))}
         }
     });
 }
