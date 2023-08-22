@@ -304,7 +304,6 @@ fn inline_functions(tokens:&mut Vec<Token>) {
         if tokens.len() >= i.1+1 {
         tokens.splice(i.0..i.1+1, i.2.clone());
         }else {
-            info!("sub in failed")
         }
     }
 }
@@ -320,11 +319,13 @@ pub struct DoStatement {
 
 
 /// # Returns (recurse, io, line_num)
-pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: HashMap<String, Vec<Token>>, mut do_statements: Vec<DoStatement>) -> (bool, IO704, usize, Vec<DoStatement>, HashMap<String, Vec<Token>>) {
+pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: HashMap<String, Vec<Token>>, mut do_statements: Vec<DoStatement>) -> (bool, IO704, usize, Vec<DoStatement>, HashMap<String, Vec<Token>>, bool) {
     let mut io = io;
     let mut lines: Vec<Vec<Token>> = vec![];
     let mut line = vec![];
     let mut labels:HashMap<i32, usize> = HashMap::new();
+
+    let mut update_io = false;
 
 
     for i in 0..tokens.len() {
@@ -343,7 +344,6 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
         }
     }
     lines.push(line.clone());
-    info!("{:?}", lines);
     let mut return_ = false;
     loop {
         if line_num >= lines.len() {
@@ -359,7 +359,6 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
                         let new_line: Vec<Token> = variables.get(a).unwrap().clone();                        
                         lines[line_num].splice(index..index+1, new_line.clone());
                         // lines.insert(line_num+1, new_line);
-                        info!("##{:?}", lines[line_num]);
                         return_ = true;
                         combine_and_expand(&mut lines[line_num]);
                     }
@@ -383,6 +382,7 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
                         io.sense_lights = vec![false; 4];
                         return_ = true;
                     }
+                    update_io = true;
                 }
                 (Token::GoTo, Token::Int(a)) if labels.contains_key(a) => {
                     line_num = labels.get(a).unwrap().clone();
@@ -470,7 +470,6 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
         }
 
         if !do_statements.is_empty() {
-            info!("do statements: {:?}", do_statements);
             let statement = do_statements.last_mut().unwrap();
             if line_num == statement.end {
                 statement.current += statement.step;
@@ -488,14 +487,14 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
 
         line_num += 1;
         if return_ {
-            return (true, io, line_num, do_statements, variables);
+            return (true, io, line_num, do_statements, variables, update_io);
         }
     }
 
     
+    update_io = true;
 
-
-    return (false, io, line_num, do_statements, variables);
+    return (false, io, line_num, do_statements, variables, update_io);
 
 }
 

@@ -81,8 +81,6 @@ fn main() {
             let document = web_sys::window().unwrap().document().unwrap();
             let edit = document.get_element_by_id("lineNo").unwrap();
             let current_line2 = edit.inner_html().parse::<usize>().unwrap();
-            info!("current line: {}", current_line2);
-            info!("num of lines: {}", num_of_lines);
             
             if num_of_lines > new_line_info.len() {
                 let new_data = LineData {
@@ -101,7 +99,7 @@ fn main() {
                 if current_line2 >= new_line_info.len() {
                     new_line_info.pop();
                 } else {
-                    new_line_info.remove(current_line2);
+                    new_line_info.remove(current_line2-1);
                 }
                 // new_line_info.remove(current_line2-1);
             }
@@ -154,7 +152,6 @@ fn main() {
                                     div(class="comment-box", on:click=move |_| {
                                         line_info.set(line_info.get().iter().map(|y| {
                                             if y.number == x.number {
-                                                info!("clicked {} {}", x.number, y.number);
                                                 LineData {
                                                     comment: !y.comment,
                                                     ..y.clone()
@@ -163,7 +160,6 @@ fn main() {
                                                 *y
                                             }
                                         }).collect::<Vec<LineData>>());
-                                        info!("clicked {:?}", line_info.get());
                                     }) {
                                         (if x.comment {
                                             "C"
@@ -187,12 +183,15 @@ fn main() {
                                     })}
                                     input(class="invisible",onclick="this.select();setTimeout(function () {this.select()}, 100)", type="text",id="line_input", bind:value=a,
                                     on:click=move |_| {
-                                        a.set(x.label.to_string());
+                                        if x.label != 0 {
+                                            a.set(x.label.to_string());
+                                        }else {
+                                            a.set("".to_string());
+                                        }
                                     },
                                      on:focusout=move |_| {
                                         line_info.set(line_info.get().iter().map(|z| {
                                             if z.number == x.number {
-                                                info!("input {} {}", x.number, z.number);
                                                 LineData {
                                                     label: a.get().parse::<i32>().unwrap_or(0).max(0),
                                                     ..z.clone()
@@ -201,7 +200,6 @@ fn main() {
                                                 *z
                                             }
                                         }).collect::<Vec<LineData>>());
-                                        info!("input {:?}", line_info.get());
                                     }) {
                                     }
                                 }
@@ -217,7 +215,6 @@ fn main() {
                                     div(class="continuation-box", on:click=move |_| {
                                         line_info.set(line_info.get().iter().map(|y| {
                                             if y.number == x.number {
-                                                info!("clicked {} {}", x.number, y.number);
                                                 LineData {
                                                     continuation: !y.continuation,
                                                     ..y.clone()
@@ -226,7 +223,6 @@ fn main() {
                                                 *y
                                             }
                                         }).collect::<Vec<LineData>>());
-                                        info!("clicked {:?}", line_info.get());
                                     }) {
                                         (if x.continuation {
                                             "x"
@@ -267,9 +263,12 @@ fn main() {
                 do_statements.set(vec![]);
                 }
 
+                let mut update_io = false;
+
                 // let mut a = 0;
                 if *do_loop.get() {
-                    let (loop_2, io_2, a2, do_st, vari) = run(
+                while !update_io {
+                    let (loop_2, io_2, a2, do_st, vari, update_io2) = run(
                         tokens.get().to_vec(),
                         (*io.get()).clone(),
                         *current_line.get(),
@@ -277,17 +276,20 @@ fn main() {
                         (*do_statements.get()).clone(),
 
                     );
+                    update_io = update_io2;
                     current_line.set(a2);
                     do_loop.set(loop_2);
-                    sense_lights.set(io_2.sense_lights.clone());
-                    sense_switches.set(io_2.sense_switches.clone());
                     display.set(io_2.display);
-                    stop_light.set(io_2.stop_light);
                     variables.set(vari);
                     do_statements.set(do_st);
-
+                    if update_io2 {
+                        sense_lights.set(io_2.sense_lights.clone());
+                        stop_light.set(io_2.stop_light);
+                        sense_switches.set(io_2.sense_switches.clone());
+                    }
 
                 }
+            }
             }) {
                 "Compile"
             }
