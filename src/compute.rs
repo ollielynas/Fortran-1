@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use sycamore::prelude::ReadSignal;
 use log::info;
 use log::Level;
+use sycamore::web::html::li;
 
 use crate::IO704;
+use crate::LineData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
@@ -18,7 +20,10 @@ pub enum Token {
     CloseParen { id: Option<i64>, function: bool },
     Print,
     Format,
+    GoTo,
     SenseLight,
+    If,
+    Label(i32),
     Power,
     Multiply,
     Divide,
@@ -39,6 +44,8 @@ impl Token {
         match str.as_str() {
             "\n" => Token::Newline,
             "DO" => Token::Do,
+            "IF" => Token::If,
+            "GoTo" => Token::GoTo,
             "DIMENSION" => Token::Dimension,
             "SenseLight" => Token::SenseLight,
             "E" => Token::E,
@@ -177,6 +184,8 @@ fn combine_and_expand(tokens: &mut Vec<Token>) {
     }
 }
 
+
+
 fn id_brackets(tokens: &mut Vec<Token>) {
     let mut id_1 = 0;
     let mut id_2 = 0;
@@ -222,6 +231,7 @@ fn get_char_type(c: char) -> CharType {
 fn inline_functions(tokens:&mut Vec<Token>) {
     // let mut id = 0;
     // let mut current_args = vec![];
+    let mut new_ids = -1;
 
     let mut functions: HashMap<String, (Vec<Token>, Vec<Token>)> = HashMap::new();
     let mut sub_in = vec![];
@@ -265,7 +275,8 @@ fn inline_functions(tokens:&mut Vec<Token>) {
                             }
                             
                         }
-                        sub_in.push((i-1, index, inside.clone()))
+                        new_ids -= 1;
+                        sub_in.push((i-1, index, [vec![Token::OpenParen { id: Some(new_ids), function: false }],inside.clone(),vec![Token::CloseParen { id: Some(new_ids), function: false }]].concat()))
 
                     }
                 }
@@ -297,18 +308,34 @@ fn inline_functions(tokens:&mut Vec<Token>) {
         }
     }
 }
+#[derive(Debug, Clone)]
+pub struct DoStatement {
+    start: usize,
+    end: usize,
+    max: i32,
+    current: i32,
+    variable: String,
+    step: i32,
+}
+
+
 /// # Returns (recurse, io, line_num)
-pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize) -> (bool, IO704, usize) {
+pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: HashMap<String, Vec<Token>>, mut do_statements: Vec<DoStatement>) -> (bool, IO704, usize, Vec<DoStatement>, HashMap<String, Vec<Token>>) {
     let mut io = io;
-    let mut variables: HashMap<String, Vec<Token>> = HashMap::new();
     let mut lines: Vec<Vec<Token>> = vec![];
     let mut line = vec![];
+    let mut labels:HashMap<i32, usize> = HashMap::new();
+
+
     for i in 0..tokens.len() {
         match &tokens[i] {
             Token::Newline => {
                 line.push(tokens[i].clone());
                 lines.push(line.clone());
                 line = vec![];
+            }
+            Token::Label(a) => {
+                labels.insert(a.clone(), lines.len());
             }
             _ => {
                 line.push(tokens[i].clone());
@@ -357,28 +384,156 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize) -> (bool, IO704, us
                         return_ = true;
                     }
                 }
+                (Token::GoTo, Token::Int(a)) if labels.contains_key(a) => {
+                    line_num = labels.get(a).unwrap().clone();
+                    return_ = true;
+                }
                 _ => {}
             }
         }
+
+        if line.len() > 4 {
+            match (&line[0], &line[1], &line[2], &line[3], &line[4]) {
+                (Token::If, Token::Int(x), Token::Int(a),Token::Int(b), Token::Int(c)) if labels.contains_key(a) && labels.contains_key(b) && labels.contains_key(c) => {
+                    match x {
+                        0 => {
+                            line_num = labels.get(b).unwrap().clone();
+                        }
+                        _ if x < &1 => {
+                            line_num = labels.get(a).unwrap().clone();
+                        }
+                        _ => {
+                            line_num = labels.get(c).unwrap().clone();
+                        }
+
+                    }
+                }
+                
+                _ => {}
+            }
+        }
+
+        if line.len() > 9 {
+            match (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6], &line[7], &line[8]) {
+                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b), Token::Comma, Token::Int(c), Token::Comma, Token::Int(d)) if labels.contains_key(x) => {
+                    let do_statement = DoStatement {
+                        start: line_num,
+                        end: labels.get(x).unwrap().clone(),
+                        max: *c,
+                        step: *d,
+                        current: *b,
+                        variable: a.to_owned(),
+                    };
+                    variables.insert(a.to_owned(), vec![Token::Int(do_statement.current)]);
+                    do_statements.push(do_statement);
+                    return_ = true;
+                }
+                _ => {}
+            }
+        }
+
+        if line.len() > 7 {
+            match (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6]) {
+                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b), Token::Comma, Token::Int(c)) if labels.contains_key(x) => {
+                    let do_statement = DoStatement {
+                        start: line_num,
+                        end: labels.get(x).unwrap().clone(),
+                        max: *c,
+                        step: 1,
+                        current: *b,
+                        variable: a.to_owned(),
+                    };
+                    variables.insert(a.to_owned(), vec![Token::Int(do_statement.current)]);
+                    do_statements.push(do_statement);
+                    return_ = true;
+                }
+                _ => {}
+            }
+        }
+        if line.len() > 5 {
+            match (&line[0], &line[1], &line[2], &line[3], &line[4]) {
+                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b)) if labels.contains_key(x) => {
+                    let do_statement = DoStatement {
+                        start: line_num,
+                        end: labels.get(x).unwrap().clone(),
+                        max: *b,
+                        step: 1,
+                        current: 1,
+                        variable: a.to_owned(),
+                    };
+                    variables.insert(a.to_owned(), vec![Token::Int(do_statement.current)]);
+                    do_statements.push(do_statement);
+                    return_ = true;
+                }
+                _ => {}
+            }
+        }
+
+        if !do_statements.is_empty() {
+            info!("do statements: {:?}", do_statements);
+            let statement = do_statements.last_mut().unwrap();
+            if line_num == statement.end {
+                statement.current += statement.step;
+                if statement.current <= statement.max {
+                    line_num = statement.start;
+                    variables.insert(statement.variable.to_owned(), vec![Token::Int(statement.current)]);
+                    return_ = true;
+                }else {
+                    do_statements.pop();
+                }
+            }
+
+        }
+
+
         line_num += 1;
         if return_ {
-            return (true, io, line_num);
+            return (true, io, line_num, do_statements, variables);
         }
     }
-    return (false, io, line_num);
+
+    
+
+
+    return (false, io, line_num, do_statements, variables);
 
 }
 
-pub fn tokenize(mut in_string: String) -> Vec<Token> {
+pub fn tokenize(mut in_string: String, mut line_data:Vec<LineData>) -> Vec<Token> {
     let mut tokens = Vec::new();
     in_string = in_string.to_uppercase();
     in_string = in_string.replace("\r\n", "\n");
     in_string = in_string.replace("SENSE LIGHT", "SenseLight");
+    in_string = in_string.replace("GO TO", "GoTo");
     let chars = in_string.chars();
 
     let mut string = String::new();
     let mut number = String::new();
+
+    
+    
+    let mut current_line = 0;
+
     for c in chars {
+        if c == '\n' {
+            current_line += 1;
+        }
+        if current_line >= line_data.len() {
+            continue;
+        }
+        if line_data[current_line].continuation && c == '\n' {
+            continue;
+        }
+
+        if line_data[current_line].label != 0 {
+            tokens.push(Token::Label(line_data[current_line].label));
+            line_data[current_line].label = 0;
+        } else
+            
+
+        if line_data[current_line].comment {
+            continue;
+        }
         let c_type = get_char_type(c);
 
         if c_type != CharType::Letter && string.len() > 0 {
@@ -398,6 +553,7 @@ pub fn tokenize(mut in_string: String) -> Vec<Token> {
         if c_type == CharType::Operator {
             tokens.push(Token::tokenize_symbols(c.to_string()));
         }
+
     }
     if number.len() > 0 {
         tokens.push(Token::number(number));
@@ -409,8 +565,8 @@ pub fn tokenize(mut in_string: String) -> Vec<Token> {
     return tokens;
 }
 
-pub fn process(str: String) -> Vec<Token> {
-    let mut tokens = tokenize(str);
+pub fn process(str: String, line_data:Vec<LineData>) -> Vec<Token> {
+    let mut tokens = tokenize(str, line_data);
     tokens = tokens.iter().filter(|x| !matches!(x, Token::Space)).map(|x| x.clone()).collect();
     id_brackets(&mut tokens);
     combine_and_expand(&mut tokens);
