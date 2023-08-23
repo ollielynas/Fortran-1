@@ -34,7 +34,10 @@ fn main() {
     console_log::init_with_level(Level::Debug);
     
     sycamore::render(|cx| {
-        let sense_switches = create_signal(cx, vec![true; 20]);
+        let sense_switches = create_signal(cx, vec![(0, false); 20].iter().enumerate().map(|(i, x)| {
+            (i, x.1)
+        }).collect::<Vec<(usize, bool)>>());
+
         let sense_lights = create_signal(cx, vec![false; 4]);
         let input = create_signal(cx, "".to_owned());
         
@@ -62,7 +65,7 @@ fn main() {
         // let print_text = cre
 
         let io = create_memo(cx, move || IO704 {
-            sense_switches: sense_switches.get().to_vec(),
+            sense_switches: sense_switches.get().iter().map(|(i,x)| *x).collect::<Vec<bool>>(),
             sense_lights: sense_lights.get().to_vec(),
             display: 0,
             stop_light: true,
@@ -141,8 +144,17 @@ fn main() {
             p{("Sense Switches")}
             Keyed(
                 iterable=sense_switches,
-                view= |cx, x| view! { cx,
-                    input(type="checkbox", class="input-button") {}
+                view= move |cx, x| view! { cx,
+                    input(type="checkbox", class="input-button", on:click=move |_|{
+                        sense_switches.set(sense_switches.get().iter().map(|(i, y)| {
+                            if i == &x.0 {
+                                (*i, !y)
+                            } else {
+                                (*i, *y)
+                            }
+                        }).collect::<Vec<(usize, bool)>>());
+                    }, checked=x.1) {}
+                    
                 },
                 key=|x| *x,
             )
@@ -299,7 +311,9 @@ fn main() {
                     if update_io2 {
                         sense_lights.set(io_2.sense_lights.clone());
                         stop_light.set(io_2.stop_light);
-                        sense_switches.set(io_2.sense_switches.clone());
+                        sense_switches.set(io_2.sense_switches.iter().enumerate().map(|(i, x)| {
+                            (i, *x)
+                        }).collect::<Vec<(usize, bool)>>());
                     }
 
                 }

@@ -47,6 +47,7 @@ pub enum Token {
     Do,
     Comma,
     Dimension,
+    SenseSwitch,
     E,
 }
 
@@ -61,6 +62,7 @@ impl Token {
             "SenseLight" => Token::SenseLight,
             "E" => Token::E,
             "STOP" => Token::Stop,
+            "SenseSwitch" => Token::SenseSwitch,
             _ => Token::Identifier(str),
         }
     }
@@ -552,8 +554,24 @@ pub fn run(
                     Token::Int(a),
                     Token::Comma,
                     Token::Int(b),
-                ) if labels.contains_key(a) && labels.contains_key(b) => {
+                ) if labels.contains_key(a) && labels.contains_key(b) && io.sense_lights.len() as i32 >= *x => {
                     if io.sense_lights[*x as usize - 1] {
+                        line_num = labels.get(a).unwrap().clone();
+                    } else {
+                        line_num = labels.get(b).unwrap().clone();
+                    }
+                }
+                (
+                    Token::If,
+                    Token::OpenParen { id: _, function: _ },
+                    Token::SenseSwitch,
+                    Token::Int(x),
+                    Token::CloseParen { id: _, function: _ },
+                    Token::Int(a),
+                    Token::Comma,
+                    Token::Int(b),
+                ) if labels.contains_key(a) && labels.contains_key(b) && io.sense_switches.len() as i32 >= *x => {
+                    if io.sense_switches[*x as usize - 1] {
                         line_num = labels.get(a).unwrap().clone();
                     } else {
                         line_num = labels.get(b).unwrap().clone();
@@ -644,6 +662,7 @@ pub fn tokenize(mut in_string: String, mut line_data: Vec<LineData>) -> Vec<Toke
     in_string = in_string.to_uppercase();
     in_string = in_string.replace("\r\n", "\n");
     in_string = in_string.replace("SENSE LIGHT", "SenseLight");
+    in_string = in_string.replace("SENSE SWITCH", "SenseSwitch");
     in_string = in_string.replace("GO TO", "GoTo");
     let chars = in_string.chars();
 
