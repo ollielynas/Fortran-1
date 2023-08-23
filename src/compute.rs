@@ -1,23 +1,35 @@
-use std::collections::HashMap;
-use sycamore::prelude::ReadSignal;
 use log::info;
 use log::Level;
+use std::collections::HashMap;
+use sycamore::prelude::ReadSignal;
 use sycamore::web::html::li;
 
-use crate::IO704;
 use crate::LineData;
+use crate::IO704;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
     Identifier(String),
-    Variable {id: String},
-    Function {id: String, args: Vec<String>, definition: bool},
+    Variable {
+        id: String,
+    },
+    Function {
+        id: String,
+        args: Vec<String>,
+        definition: bool,
+    },
     Int(i32),
     Float(f32),
     UnknownToken(String),
     Newline,
-    OpenParen { id: Option<i64>, function: bool },
-    CloseParen { id: Option<i64>, function: bool },
+    OpenParen {
+        id: Option<i64>,
+        function: bool,
+    },
+    CloseParen {
+        id: Option<i64>,
+        function: bool,
+    },
     Print,
     Format,
     GoTo,
@@ -37,7 +49,6 @@ pub enum Token {
     Dimension,
     E,
 }
-
 
 impl Token {
     fn identifier_builtin(str: String) -> Token {
@@ -72,8 +83,14 @@ impl Token {
 
     fn tokenize_symbols(str: String) -> Token {
         match str.as_str() {
-            "(" => Token::OpenParen { id: None, function: false },
-            ")" => Token::CloseParen { id: None, function: false },
+            "(" => Token::OpenParen {
+                id: None,
+                function: false,
+            },
+            ")" => Token::CloseParen {
+                id: None,
+                function: false,
+            },
             "*" => Token::Multiply,
             "\n" => Token::Newline,
             "/" => Token::Divide,
@@ -94,8 +111,6 @@ enum CharType {
     Operator,
 }
 
-
-
 fn combine_and_expand(tokens: &mut Vec<Token>) {
     if tokens.len() == 0 {
         return;
@@ -107,7 +122,7 @@ fn combine_and_expand(tokens: &mut Vec<Token>) {
         let mut changed = true;
         if i < tokens.len() - 1 && i > 0 {
             match (&tokens[i - 1], &tokens[i], &tokens[i + 1], bedmas) {
-                (Token::Float(x), Token::E, Token::Int(y), 0)=> {
+                (Token::Float(x), Token::E, Token::Int(y), 0) => {
                     tokens[i] = Token::Float(x * (10.0_f32).powi(y.clone()));
                 }
                 (Token::Int(x), Token::Power, Token::Int(y), 0) => {
@@ -120,25 +135,36 @@ fn combine_and_expand(tokens: &mut Vec<Token>) {
                     tokens[i] = Token::Float(x * y);
                 }
                 (Token::Float(x), Token::Add, Token::Float(y), 2) => {
-                    tokens[i] = Token::Float(x+y);
+                    tokens[i] = Token::Float(x + y);
                 }
                 (Token::Float(x), Token::Subtract, Token::Float(y), 2) => {
-                    tokens[i] = Token::Float(x-y);
+                    tokens[i] = Token::Float(x - y);
                 }
                 (Token::Float(x), Token::Divide, Token::Float(y), 1) => {
-                    tokens[i] = Token::Float(x/y);
+                    tokens[i] = Token::Float(x / y);
                 }
                 (Token::Int(x), Token::Add, Token::Int(y), 2) => {
-                    tokens[i] = Token::Int(x+y);
+                    tokens[i] = Token::Int(x + y);
                 }
                 (Token::Int(x), Token::Subtract, Token::Int(y), 2) => {
-                    tokens[i] = Token::Int(x-y);
+                    tokens[i] = Token::Int(x - y);
                 }
                 (Token::Int(x), Token::Divide, Token::Int(y), 1) => {
-                    tokens[i] = Token::Int(x/y);
+                    tokens[i] = Token::Int(x / y);
                 }
                 // must be last option
-                (Token::OpenParen { id: a, function: false}, _, Token::CloseParen { id: b, function: false}, _) if a==b => {
+                (
+                    Token::OpenParen {
+                        id: a,
+                        function: false,
+                    },
+                    _,
+                    Token::CloseParen {
+                        id: b,
+                        function: false,
+                    },
+                    _,
+                ) if a == b => {
                     bedmas = 0;
                 }
                 _ => {
@@ -151,9 +177,9 @@ fn combine_and_expand(tokens: &mut Vec<Token>) {
                 i = 0;
             }
         }
-        if i>0 {
+        if i > 0 {
             changed = true;
-        match (&tokens[i-1], &tokens[i]) {
+            match (&tokens[i - 1], &tokens[i]) {
                 (Token::Multiply, Token::Multiply) => {
                     tokens[i] = Token::Power;
                 }
@@ -168,7 +194,7 @@ fn combine_and_expand(tokens: &mut Vec<Token>) {
         }
         if del == vec![] {
             i += 1;
-            if i==tokens.len() {
+            if i == tokens.len() {
                 bedmas += 1;
                 i = 0;
             }
@@ -180,11 +206,8 @@ fn combine_and_expand(tokens: &mut Vec<Token>) {
         for i in del.iter().rev() {
             tokens.remove(*i);
         }
-        
     }
 }
-
-
 
 fn id_brackets(tokens: &mut Vec<Token>) {
     let mut id_1 = 0;
@@ -192,7 +215,10 @@ fn id_brackets(tokens: &mut Vec<Token>) {
     let mut functions = vec![];
     for i in 0..tokens.len() {
         match tokens[i] {
-            Token::OpenParen { id: None, function:_} => {
+            Token::OpenParen {
+                id: None,
+                function: _,
+            } => {
                 id_1 += 1;
                 if id_1 == 1 {
                     id_2 += 10000000;
@@ -206,7 +232,10 @@ fn id_brackets(tokens: &mut Vec<Token>) {
                     function: func,
                 };
             }
-            Token::CloseParen { id: None, function:_} => {
+            Token::CloseParen {
+                id: None,
+                function: _,
+            } => {
                 tokens[i] = Token::CloseParen {
                     id: Some(id_2 + id_1),
                     function: functions.contains(&(id_2 + id_1)),
@@ -228,7 +257,7 @@ fn get_char_type(c: char) -> CharType {
     }
 }
 
-fn inline_functions(tokens:&mut Vec<Token>) {
+fn inline_functions(tokens: &mut Vec<Token>) {
     // let mut id = 0;
     // let mut current_args = vec![];
     let mut new_ids = -1;
@@ -236,30 +265,54 @@ fn inline_functions(tokens:&mut Vec<Token>) {
     let mut functions: HashMap<String, (Vec<Token>, Vec<Token>)> = HashMap::new();
     let mut sub_in = vec![];
     for i in 1..tokens.len() {
-        match (&tokens[i-1], &tokens[i]) {
-            (Token::Identifier(a), Token::OpenParen {id: Some(b), function: true}) => {
+        match (&tokens[i - 1], &tokens[i]) {
+            (
+                Token::Identifier(a),
+                Token::OpenParen {
+                    id: Some(b),
+                    function: true,
+                },
+            ) => {
                 let mut inside = vec![];
                 if functions.contains_key(a) {
-                    let (args, mut inside): (Vec<Token>, Vec<Token>) = functions.get(a).unwrap().clone();
-                    if let Some(index) = tokens.iter().position(|r| r == &Token::CloseParen {id: Some(b.clone()), function: true}) {
+                    let (args, mut inside): (Vec<Token>, Vec<Token>) =
+                        functions.get(a).unwrap().clone();
+                    if let Some(index) = tokens.iter().position(|r| {
+                        r == &Token::CloseParen {
+                            id: Some(b.clone()),
+                            function: true,
+                        }
+                    }) {
                         let mut arg_num = 0;
                         let mut current_args: Vec<Token> = vec![];
-                        for i in tokens.iter().skip(i+1) {
+                        for i in tokens.iter().skip(i + 1) {
                             match i {
-                                Token::CloseParen { id: Some(close_id), function: true } if close_id == b => {
-                                    inside = inside.iter().flat_map(|x| match x {
-                                        Token::Identifier(_) if x == &args[arg_num] => current_args.clone(),
-                                        _ => vec![x.clone()]
-                                    }).collect::<Vec<Token>>();
+                                Token::CloseParen {
+                                    id: Some(close_id),
+                                    function: true,
+                                } if close_id == b => {
+                                    inside = inside
+                                        .iter()
+                                        .flat_map(|x| match x {
+                                            Token::Identifier(_) if x == &args[arg_num] => {
+                                                current_args.clone()
+                                            }
+                                            _ => vec![x.clone()],
+                                        })
+                                        .collect::<Vec<Token>>();
                                     break;
                                 }
                                 Token::Comma => {
-                                    
-                                    inside = inside.iter().flat_map(|x| match x {
-                                        Token::Identifier(_) if x == &args[arg_num] => current_args.clone(),
-                                        _ => vec![x.clone()]
-                                    }).collect::<Vec<Token>>();
-                                    
+                                    inside = inside
+                                        .iter()
+                                        .flat_map(|x| match x {
+                                            Token::Identifier(_) if x == &args[arg_num] => {
+                                                current_args.clone()
+                                            }
+                                            _ => vec![x.clone()],
+                                        })
+                                        .collect::<Vec<Token>>();
+
                                     current_args = vec![];
                                     arg_num += 1;
                                 }
@@ -268,22 +321,45 @@ fn inline_functions(tokens:&mut Vec<Token>) {
                                 }
                             }
                         }
-                        
-                        for i in tokens.iter().skip(i+1) {
+
+                        for i in tokens.iter().skip(i + 1) {
                             if *i == Token::Newline {
                                 break;
                             }
-                            
                         }
                         new_ids -= 1;
-                        sub_in.push((i-1, index, [vec![Token::OpenParen { id: Some(new_ids), function: false }],inside.clone(),vec![Token::CloseParen { id: Some(new_ids), function: false }]].concat()))
-
+                        sub_in.push((
+                            i - 1,
+                            index,
+                            [
+                                vec![Token::OpenParen {
+                                    id: Some(new_ids),
+                                    function: false,
+                                }],
+                                inside.clone(),
+                                vec![Token::CloseParen {
+                                    id: Some(new_ids),
+                                    function: false,
+                                }],
+                            ]
+                            .concat(),
+                        ))
                     }
                 }
-                if let Some(index) = tokens.iter().position(|r| r == &Token::CloseParen {id: Some(b.clone()), function: true}) {
-                    if index < tokens.len()-1 && tokens[index+1] == Token::Equals {
-                        let args = tokens[i+1..index].to_vec().iter().filter(|x| !matches!(x, Token::Comma)).map(|x| x.clone()).collect::<Vec<Token>>();
-                        for i in tokens.iter().skip(index+2) {
+                if let Some(index) = tokens.iter().position(|r| {
+                    r == &Token::CloseParen {
+                        id: Some(b.clone()),
+                        function: true,
+                    }
+                }) {
+                    if index < tokens.len() - 1 && tokens[index + 1] == Token::Equals {
+                        let args = tokens[i + 1..index]
+                            .to_vec()
+                            .iter()
+                            .filter(|x| !matches!(x, Token::Comma))
+                            .map(|x| x.clone())
+                            .collect::<Vec<Token>>();
+                        for i in tokens.iter().skip(index + 2) {
                             if *i == Token::Newline {
                                 break;
                             }
@@ -292,18 +368,15 @@ fn inline_functions(tokens:&mut Vec<Token>) {
                         functions.insert(a.clone(), (args, inside));
                     }
                 }
-
-
             }
             _ => {}
         }
-
     }
 
     for i in sub_in.iter().rev() {
-        if tokens.len() >= i.1+1 {
-        tokens.splice(i.0..i.1+1, i.2.clone());
-        }else {
+        if tokens.len() >= i.1 + 1 {
+            tokens.splice(i.0..i.1 + 1, i.2.clone());
+        } else {
         }
     }
 }
@@ -317,16 +390,27 @@ pub struct DoStatement {
     step: i32,
 }
 
-
 /// # Returns (recurse, io, line_num)
-pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: HashMap<String, Vec<Token>>, mut do_statements: Vec<DoStatement>) -> (bool, IO704, usize, Vec<DoStatement>, HashMap<String, Vec<Token>>, bool) {
+pub fn run(
+    tokens: Vec<Token>,
+    io: IO704,
+    mut line_num: usize,
+    mut variables: HashMap<String, Vec<Token>>,
+    mut do_statements: Vec<DoStatement>,
+) -> (
+    bool,
+    IO704,
+    usize,
+    Vec<DoStatement>,
+    HashMap<String, Vec<Token>>,
+    bool,
+) {
     let mut io = io;
     let mut lines: Vec<Vec<Token>> = vec![];
     let mut line = vec![];
-    let mut labels:HashMap<i32, usize> = HashMap::new();
+    let mut labels: HashMap<i32, usize> = HashMap::new();
 
     let mut update_io = false;
-
 
     for i in 0..tokens.len() {
         match &tokens[i] {
@@ -347,17 +431,17 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
     let mut return_ = false;
     loop {
         if line_num >= lines.len() {
-            break
+            break;
         }
         let line = lines[line_num].clone();
         let mut index = 0;
         for i in line.iter().skip(1) {
-            index +=1;
+            index += 1;
             match i {
                 Token::Identifier(a) => {
                     if variables.contains_key(a) {
-                        let new_line: Vec<Token> = variables.get(a).unwrap().clone();                        
-                        lines[line_num].splice(index..index+1, new_line.clone());
+                        let new_line: Vec<Token> = variables.get(a).unwrap().clone();
+                        lines[line_num].splice(index..index + 1, new_line.clone());
                         // lines.insert(line_num+1, new_line);
                         return_ = true;
                         combine_and_expand(&mut lines[line_num]);
@@ -372,13 +456,20 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
         if line.len() > 1 {
             match (&line[0], &line[1]) {
                 (Token::Identifier(a), Token::Equals) => {
-                    variables.insert(a.to_owned(), line[2..].iter().filter(|x| !matches!(x, Token::Newline)).map(|x| x.clone()).collect::<Vec<Token>>());
+                    variables.insert(
+                        a.to_owned(),
+                        line[2..]
+                            .iter()
+                            .filter(|x| !matches!(x, Token::Newline))
+                            .map(|x| x.clone())
+                            .collect::<Vec<Token>>(),
+                    );
                 }
-                (Token::SenseLight, Token::Int(a)) if io.sense_lights.len()+1 > *a as usize => {
+                (Token::SenseLight, Token::Int(a)) if io.sense_lights.len() + 1 > *a as usize => {
                     if a > &0 {
-                        io.sense_lights[*a as usize-1] = true;
+                        io.sense_lights[*a as usize - 1] = true;
                         return_ = true;
-                    }else {
+                    } else {
                         io.sense_lights = vec![false; 4];
                         return_ = true;
                     }
@@ -394,7 +485,11 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
 
         if line.len() > 4 {
             match (&line[0], &line[1], &line[2], &line[3], &line[4]) {
-                (Token::If, Token::Int(x), Token::Int(a),Token::Int(b), Token::Int(c)) if labels.contains_key(a) && labels.contains_key(b) && labels.contains_key(c) => {
+                (Token::If, Token::Int(x), Token::Int(a), Token::Int(b), Token::Int(c))
+                    if labels.contains_key(a)
+                        && labels.contains_key(b)
+                        && labels.contains_key(c) =>
+                {
                     match x {
                         0 => {
                             line_num = labels.get(b).unwrap().clone();
@@ -405,17 +500,29 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
                         _ => {
                             line_num = labels.get(c).unwrap().clone();
                         }
-
                     }
                 }
-                
+
                 _ => {}
             }
         }
 
         if line.len() > 9 {
-            match (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6], &line[7], &line[8]) {
-                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b), Token::Comma, Token::Int(c), Token::Comma, Token::Int(d)) if labels.contains_key(x) => {
+            match (
+                &line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6], &line[7],
+                &line[8],
+            ) {
+                (
+                    Token::Do,
+                    Token::Int(x),
+                    Token::Identifier(a),
+                    Token::Equals,
+                    Token::Int(b),
+                    Token::Comma,
+                    Token::Int(c),
+                    Token::Comma,
+                    Token::Int(d),
+                ) if labels.contains_key(x) => {
                     let do_statement = DoStatement {
                         start: line_num,
                         end: labels.get(x).unwrap().clone(),
@@ -428,13 +535,46 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
                     do_statements.push(do_statement);
                     return_ = true;
                 }
+
                 _ => {}
             }
         }
-
+        if line.len() >= 8 {
+            match (
+                &line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6], &line[7],
+            ) {
+                (
+                    Token::If,
+                    Token::OpenParen { id: _, function: _ },
+                    Token::SenseLight,
+                    Token::Int(x),
+                    Token::CloseParen { id: _, function: _ },
+                    Token::Int(a),
+                    Token::Comma,
+                    Token::Int(b),
+                ) if labels.contains_key(a) && labels.contains_key(b) => {
+                    if io.sense_lights[*x as usize - 1] {
+                        line_num = labels.get(a).unwrap().clone();
+                    } else {
+                        line_num = labels.get(b).unwrap().clone();
+                    }
+                }
+                _ => {}
+            }
+        }
         if line.len() > 7 {
-            match (&line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6]) {
-                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b), Token::Comma, Token::Int(c)) if labels.contains_key(x) => {
+            match (
+                &line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6],
+            ) {
+                (
+                    Token::Do,
+                    Token::Int(x),
+                    Token::Identifier(a),
+                    Token::Equals,
+                    Token::Int(b),
+                    Token::Comma,
+                    Token::Int(c),
+                ) if labels.contains_key(x) => {
                     let do_statement = DoStatement {
                         start: line_num,
                         end: labels.get(x).unwrap().clone(),
@@ -452,7 +592,9 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
         }
         if line.len() > 5 {
             match (&line[0], &line[1], &line[2], &line[3], &line[4]) {
-                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b)) if labels.contains_key(x) => {
+                (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b))
+                    if labels.contains_key(x) =>
+                {
                     let do_statement = DoStatement {
                         start: line_num,
                         end: labels.get(x).unwrap().clone(),
@@ -475,15 +617,16 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
                 statement.current += statement.step;
                 if statement.current <= statement.max {
                     line_num = statement.start;
-                    variables.insert(statement.variable.to_owned(), vec![Token::Int(statement.current)]);
+                    variables.insert(
+                        statement.variable.to_owned(),
+                        vec![Token::Int(statement.current)],
+                    );
                     return_ = true;
-                }else {
+                } else {
                     do_statements.pop();
                 }
             }
-
         }
-
 
         line_num += 1;
         if return_ {
@@ -491,14 +634,12 @@ pub fn run(tokens: Vec<Token>, io:IO704, mut line_num:usize, mut variables: Hash
         }
     }
 
-    
     update_io = true;
 
     return (false, io, line_num, do_statements, variables, update_io);
-
 }
 
-pub fn tokenize(mut in_string: String, mut line_data:Vec<LineData>) -> Vec<Token> {
+pub fn tokenize(mut in_string: String, mut line_data: Vec<LineData>) -> Vec<Token> {
     let mut tokens = Vec::new();
     in_string = in_string.to_uppercase();
     in_string = in_string.replace("\r\n", "\n");
@@ -509,8 +650,6 @@ pub fn tokenize(mut in_string: String, mut line_data:Vec<LineData>) -> Vec<Token
     let mut string = String::new();
     let mut number = String::new();
 
-    
-    
     let mut current_line = 0;
 
     for c in chars {
@@ -527,10 +666,7 @@ pub fn tokenize(mut in_string: String, mut line_data:Vec<LineData>) -> Vec<Token
         if line_data[current_line].label != 0 {
             tokens.push(Token::Label(line_data[current_line].label));
             line_data[current_line].label = 0;
-        } else
-            
-
-        if line_data[current_line].comment {
+        } else if line_data[current_line].comment {
             continue;
         }
         let c_type = get_char_type(c);
@@ -552,7 +688,6 @@ pub fn tokenize(mut in_string: String, mut line_data:Vec<LineData>) -> Vec<Token
         if c_type == CharType::Operator {
             tokens.push(Token::tokenize_symbols(c.to_string()));
         }
-
     }
     if number.len() > 0 {
         tokens.push(Token::number(number));
@@ -564,9 +699,13 @@ pub fn tokenize(mut in_string: String, mut line_data:Vec<LineData>) -> Vec<Token
     return tokens;
 }
 
-pub fn process(str: String, line_data:Vec<LineData>) -> Vec<Token> {
+pub fn process(str: String, line_data: Vec<LineData>) -> Vec<Token> {
     let mut tokens = tokenize(str, line_data);
-    tokens = tokens.iter().filter(|x| !matches!(x, Token::Space)).map(|x| x.clone()).collect();
+    tokens = tokens
+        .iter()
+        .filter(|x| !matches!(x, Token::Space))
+        .map(|x| x.clone())
+        .collect();
     id_brackets(&mut tokens);
     combine_and_expand(&mut tokens);
     for i in 0..3 {

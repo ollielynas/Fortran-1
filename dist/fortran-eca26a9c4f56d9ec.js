@@ -565,7 +565,7 @@ async function __wbg_init(input) {
     if (wasm !== undefined) return wasm;
 
     if (typeof input === 'undefined') {
-        input = new URL('fortran-e08e61d37fe22ace_bg.wasm', import.meta.url);
+        input = new URL('fortran-eca26a9c4f56d9ec_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 

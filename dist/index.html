@@ -128,6 +128,7 @@ textarea {
 }
 
 
+
 .epic {
 /* font-family: 'Comic Neue', cursive; */
 font-weight: bolder;
@@ -213,12 +214,16 @@ color: transparent;
     align-items: flex-start;
 }
 
+.input-button {
+    pointer-events: all;
+}
+
 
     </style>
 
 
-<link rel="preload" href="/fortran-e08e61d37fe22ace_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
-<link rel="modulepreload" href="/fortran-e08e61d37fe22ace.js"></head>
+<link rel="preload" href="/fortran-eca26a9c4f56d9ec_bg.wasm" as="fetch" type="application/wasm" crossorigin="">
+<link rel="modulepreload" href="/fortran-eca26a9c4f56d9ec.js"></head>
 <body onload="
         var button = document.getElementById('run-click')
         // run every 1 second
@@ -244,7 +249,7 @@ color: transparent;
 </script>
 
 
-<script type="module">import init from '/fortran-e08e61d37fe22ace.js';init('/fortran-e08e61d37fe22ace_bg.wasm');</script><script>(function () {
+<script type="module">import init from '/fortran-eca26a9c4f56d9ec.js';init('/fortran-eca26a9c4f56d9ec_bg.wasm');</script><script>(function () {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var url = protocol + '//' + window.location.host + '/_trunk/ws';
     var poll_interval = 5000;
