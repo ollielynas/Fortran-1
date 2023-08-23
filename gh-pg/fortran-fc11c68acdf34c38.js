@@ -523,8 +523,8 @@ imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
 imports.wbg.__wbindgen_throw = function(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 };
-imports.wbg.__wbindgen_closure_wrapper1107 = function(arg0, arg1, arg2) {
-    const ret = makeMutClosure(arg0, arg1, 53, __wbg_adapter_18);
+imports.wbg.__wbindgen_closure_wrapper1169 = function(arg0, arg1, arg2) {
+    const ret = makeMutClosure(arg0, arg1, 46, __wbg_adapter_18);
     return addHeapObject(ret);
 };
 
@@ -565,7 +565,7 @@ async function __wbg_init(input) {
     if (wasm !== undefined) return wasm;
 
     if (typeof input === 'undefined') {
-        input = new URL('fortran-5e6dd531db19d4e_bg.wasm', import.meta.url);
+        input = new URL('fortran-fc11c68acdf34c38_bg.wasm', import.meta.url);
     }
     const imports = __wbg_get_imports();
 
