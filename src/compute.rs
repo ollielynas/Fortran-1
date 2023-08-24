@@ -61,6 +61,7 @@ impl Token {
             "DIMENSION" => Token::Dimension,
             "SenseLight" => Token::SenseLight,
             "E" => Token::E,
+            "PRINT" => Token::Print,
             "STOP" => Token::Stop,
             "SenseSwitch" => Token::SenseSwitch,
             _ => Token::Identifier(str),
@@ -466,6 +467,7 @@ pub fn run(
                             .map(|x| x.clone())
                             .collect::<Vec<Token>>(),
                     );
+                    
                 }
                 (Token::SenseLight, Token::Int(a)) if io.sense_lights.len() + 1 > *a as usize => {
                     if a > &0 {
@@ -480,6 +482,9 @@ pub fn run(
                 (Token::GoTo, Token::Int(a)) if labels.contains_key(a) => {
                     line_num = labels.get(a).unwrap().clone();
                     return_ = true;
+                }
+                (Token::Print, _) => {
+                    info!("{:?}", line);
                 }
                 _ => {}
             }
@@ -583,7 +588,7 @@ pub fn run(
         if line.len() > 7 {
             match (
                 &line[0], &line[1], &line[2], &line[3], &line[4], &line[5], &line[6],
-            ) {
+            )  {
                 (
                     Token::Do,
                     Token::Int(x),
@@ -592,7 +597,7 @@ pub fn run(
                     Token::Int(b),
                     Token::Comma,
                     Token::Int(c),
-                ) if labels.contains_key(x) => {
+                ) if labels.contains_key(x) && line.get(7) != Some(&Token::Comma) => {
                     let do_statement = DoStatement {
                         start: line_num,
                         end: labels.get(x).unwrap().clone(),
@@ -611,7 +616,7 @@ pub fn run(
         if line.len() > 5 {
             match (&line[0], &line[1], &line[2], &line[3], &line[4]) {
                 (Token::Do, Token::Int(x), Token::Identifier(a), Token::Equals, Token::Int(b))
-                    if labels.contains_key(x) =>
+                    if labels.contains_key(x) && line.get(5) != Some(&Token::Comma) =>
                 {
                     let do_statement = DoStatement {
                         start: line_num,
